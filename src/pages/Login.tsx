@@ -169,6 +169,15 @@ const Login: React.FC = () => {
             <p className="mt-6 text-center text-sm text-gray-500">
               Note: For demonstration purposes, use the pre-filled credentials.
             </p>
+            
+            <div className="mt-4 bg-gray-50 p-3 rounded-md border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Pre-filled Credentials:</h3>
+              <div className="text-xs space-y-1 text-gray-600">
+                <p><strong>Admin:</strong> admin@dsk.gov.lk / admin123</p>
+                <p><strong>Staff:</strong> staff@dsk.gov.lk / staff123</p>
+                <p><strong>Public:</strong> public@dsk.gov.lk / public123</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

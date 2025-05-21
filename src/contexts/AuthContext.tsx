@@ -12,6 +12,10 @@ export interface User {
   role: UserRole;
   department?: string;
   division?: string;
+  nic?: string;
+  address?: string;
+  mobile?: string;
+  profileImage?: string;
 }
 
 // Auth state interface
@@ -25,6 +29,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 // Create the context
@@ -32,9 +37,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Mock users for demo (replace with API calls in production)
 const MOCK_USERS: User[] = [
-  { id: '1', name: 'Admin User', email: 'admin@dsk.gov.lk', role: 'admin' },
-  { id: '2', name: 'Staff Member', email: 'staff@dsk.gov.lk', role: 'staff', department: 'Administrative Division' },
-  { id: '3', name: 'S.L.Farhana', email: 'public@dsk.gov.lk', role: 'public' },
+  { 
+    id: '1', 
+    name: 'Admin User', 
+    email: 'admin@dsk.gov.lk', 
+    role: 'admin' 
+  },
+  { 
+    id: '2', 
+    name: 'Staff Member', 
+    email: 'staff@dsk.gov.lk', 
+    role: 'staff', 
+    department: 'Administrative Division',
+    division: 'General Administration'
+  },
+  { 
+    id: '3', 
+    name: 'S.L.Farhana', 
+    email: 'public@dsk.gov.lk', 
+    role: 'public',
+    nic: '985761234V',
+    mobile: '0771234567',
+    address: 'No.123, Main Street, Kalmunai'
+  },
 ];
 
 // Auth Provider component
@@ -97,6 +122,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading: false,
     });
   };
+  
+  // Update user data
+  const updateUser = (userData: Partial<User>) => {
+    if (state.user) {
+      const updatedUser = { ...state.user, ...userData };
+      localStorage.setItem('dsk_user', JSON.stringify(updatedUser));
+      setState({
+        ...state,
+        user: updatedUser
+      });
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -104,6 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...state,
         login,
         logout,
+        updateUser
       }}
     >
       {children}

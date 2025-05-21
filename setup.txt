@@ -1,11 +1,11 @@
 
 # DSK - Divisional Secretariat Kalmunai Web Application Setup
 
-This document provides instructions for setting up the DSK web application on your cPanel hosting environment.
+This document provides comprehensive instructions for setting up the DSK web application on your cPanel hosting environment.
 
 ## 1. Frontend Setup (React App)
 
-### 1.1 Upload Files
+### 1.1 Build and Upload Files
 
 1. Build the React application locally:
    ```
@@ -28,6 +28,16 @@ This document provides instructions for setting up the DSK web application on yo
    ```
    This will enable client-side routing to work properly.
 
+### 1.2 Frontend Environment Configuration
+
+1. Create a `.env` file in your React application root (before building):
+   ```
+   VITE_API_URL=https://yourdomain.com/api
+   VITE_ASSETS_URL=https://yourdomain.com/assets
+   ```
+
+2. Ensure this is included during the build process.
+
 ## 2. Backend Setup (Node.js API)
 
 ### 2.1 Setup Node.js Environment
@@ -49,11 +59,13 @@ This document provides instructions for setting up the DSK web application on yo
    ```
    PORT=3000
    NODE_ENV=production
-   DB_HOST=localhost
+   DB_HOST=node238.r-usdatacenter.register.lk
    DB_USER=dskalmun_Admin
-   DB_PASSWORD=your_db_password
+   DB_PASSWORD=StrongPassword123!
    DB_NAME=dskalmun_webapp
-   JWT_SECRET=your_jwt_secret_key
+   JWT_SECRET=dsk_secret_key_2024_kalmunai
+   TOKEN_EXPIRY=24h
+   CORS_ORIGIN=https://yourdomain.com
    ```
 
 5. Set up PM2 (Process Manager) to keep your Node.js application running:
@@ -64,60 +76,67 @@ This document provides instructions for setting up the DSK web application on yo
    pm2 save
    ```
 
+### 2.2 Backend API Structure
+
+The backend should include the following structure:
+```
+/home/dskalmun/nodejs/kalmunai-backend/
+├── controllers/
+│   ├── authController.js
+│   ├── adminController.js
+│   ├── staffController.js
+│   ├── publicController.js
+│   ├── departmentController.js
+│   └── serviceController.js
+├── routes/
+│   ├── authRoutes.js
+│   ├── adminRoutes.js
+│   ├── staffRoutes.js
+│   ├── publicRoutes.js
+│   └── serviceRoutes.js
+├── middleware/
+│   ├── auth.js
+│   ├── roleCheck.js
+│   └── errorHandler.js
+├── utils/
+│   ├── database.js
+│   ├── idCardGenerator.js
+│   ├── tokenGenerator.js
+│   └── qrCodeGenerator.js
+├── templates/
+│   ├── idCard.html
+│   └── token.html
+├── app.js
+├── package.json
+└── .env
+```
+
 ## 3. Database Setup
 
-### 3.1 Create Database and User
+### 3.1 Create Database and User in cPanel
 
 1. Log in to cPanel and go to MySQL Databases.
-2. Create a database named `dskalmun_webapp`.
-3. Create a user named `dskalmun_Admin` with a secure password.
-4. Add the user to the database with all privileges.
+2. The database `dskalmun_webapp` should already exist based on your information.
+3. If not, create it and ensure the user `dskalmun_Admin` has all privileges.
+4. If you need to create the user, use a strong password like `StrongPassword123!` (change this for production).
 
 ### 3.2 Import Database Schema
 
 1. Log in to phpMyAdmin.
 2. Select the `dskalmun_webapp` database.
 3. Click on the Import tab.
-4. Choose the `database.sql` file provided with this setup guide.
-5. Click Go to import the database schema.
-
-## 4. Domain Configuration
-
-### 4.1 Set up Domain or Subdomain
-
-1. In cPanel, go to Domains or Subdomains section.
-2. Point your domain or create a subdomain (e.g., app.yourdomain.com) to the `/home/dskalmun/public_html/rapp/` directory.
-
-### 4.2 SSL Configuration (Recommended)
-
-1. In cPanel, go to SSL/TLS section.
-2. Install an SSL certificate for your domain.
-3. Enable HTTPS redirection for your domain.
-
-## 5. API Configuration
-
-### 5.1 Update API Endpoint in Frontend
-
-1. Edit the `.env` file in the frontend build:
-   ```
-   VITE_API_URL=https://your-domain.com/api
-   ```
-
-2. Set up a proxy pass in your Apache configuration to forward API requests to your Node.js server.
-   Create a file named `.htaccess` in your main domain directory with:
-   ```
-   <IfModule mod_rewrite.c>
-     RewriteEngine On
-     
-     # Proxy API requests to Node.js server
-     RewriteCond %{REQUEST_URI} ^/api/(.*)$ [NC]
-     RewriteRule ^api/(.*)$ http://localhost:3000/$1 [P,L]
-   </IfModule>
-   ```
-
-## 6. Database Schema (database.sql)
+4. Copy the SQL statements below and save them as `database.sql`, then import this file.
 
 ```sql
+-- Drop tables if they exist to prevent errors
+DROP TABLE IF EXISTS id_cards;
+DROP TABLE IF EXISTS tokens;
+DROP TABLE IF EXISTS documents;
+DROP TABLE IF EXISTS services;
+DROP TABLE IF EXISTS divisions;
+DROP TABLE IF EXISTS departments;
+DROP TABLE IF EXISTS users;
+
 -- Create users table
 CREATE TABLE users (
     id CHAR(36) PRIMARY KEY,
@@ -125,12 +144,13 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role ENUM('admin', 'staff', 'public') NOT NULL DEFAULT 'public',
-    nic VARCHAR(20),
-    dob DATE,
-    address TEXT,
-    mobile VARCHAR(20),
-    department VARCHAR(255),
-    division VARCHAR(255),
+    nic VARCHAR(20) DEFAULT NULL,
+    dob DATE DEFAULT NULL,
+    address TEXT DEFAULT NULL,
+    mobile VARCHAR(20) DEFAULT NULL,
+    department VARCHAR(255) DEFAULT NULL,
+    division VARCHAR(255) DEFAULT NULL,
+    profile_image VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -139,7 +159,7 @@ CREATE TABLE users (
 CREATE TABLE departments (
     id CHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
+    description TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -149,7 +169,7 @@ CREATE TABLE divisions (
     id CHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     department_id CHAR(36) NOT NULL,
-    description TEXT,
+    description TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
@@ -160,9 +180,11 @@ CREATE TABLE services (
     id CHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     department_id CHAR(36) NOT NULL,
-    division_id CHAR(36),
-    description TEXT,
-    required_documents TEXT,
+    division_id CHAR(36) DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    required_documents TEXT DEFAULT NULL,
+    process_time VARCHAR(100) DEFAULT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
@@ -175,12 +197,17 @@ CREATE TABLE documents (
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL,
     path VARCHAR(255) NOT NULL,
-    department_id CHAR(36),
-    service_id CHAR(36),
+    department_id CHAR(36) DEFAULT NULL,
+    division_id CHAR(36) DEFAULT NULL,
+    service_id CHAR(36) DEFAULT NULL,
+    user_id CHAR(36) DEFAULT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
-    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+    FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE SET NULL,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Create tokens table
@@ -189,34 +216,67 @@ CREATE TABLE tokens (
     number INT NOT NULL,
     date DATE NOT NULL,
     time TIME NOT NULL,
-    user_id CHAR(36) NOT NULL,
     service_id CHAR(36) NOT NULL,
-    status ENUM('pending', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+    user_id CHAR(36) NOT NULL,
+    department_id CHAR(36) NOT NULL,
+    division_id CHAR(36) DEFAULT NULL,
+    status ENUM('pending', 'processing', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+    notes TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE SET NULL
 );
 
 -- Create ID cards table
 CREATE TABLE id_cards (
     id CHAR(36) PRIMARY KEY,
     user_id CHAR(36) NOT NULL,
+    card_number VARCHAR(50) NOT NULL UNIQUE,
     qr_code VARCHAR(255) NOT NULL,
     issued_date DATE NOT NULL,
+    expiry_date DATE DEFAULT NULL,
+    status ENUM('active', 'expired', 'revoked') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Insert initial admin user
+-- Insert initial admin user (password: admin123)
 INSERT INTO users (id, name, email, password, role)
 VALUES (
     UUID(),
     'Admin User',
     'admin@dsk.gov.lk',
-    '$2a$10$bsHJwzJCfP5ch5JlefaZJeN8lQ7Gy.lK9R.frNclZQ5XEyO4tYzmy', -- hashed 'admin123'
+    '$2a$10$bsHJwzJCfP5ch5JlefaZJeN8lQ7Gy.lK9R.frNclZQ5XEyO4tYzmy',
     'admin'
+);
+
+-- Insert initial staff user (password: staff123)
+INSERT INTO users (id, name, email, password, role, department, division)
+VALUES (
+    UUID(),
+    'Staff Member',
+    'staff@dsk.gov.lk',
+    '$2a$10$jTHG7kL1oE2580O62846u.YF5ASgi05NndGNdEbB3GTS73RcVP/TC',
+    'staff',
+    'Administrative Division',
+    'General Administration'
+);
+
+-- Insert initial public user (password: public123)
+INSERT INTO users (id, name, email, password, role, nic, mobile, address)
+VALUES (
+    UUID(),
+    'S.L.Farhana',
+    'public@dsk.gov.lk',
+    '$2a$10$gGyC6.80GicIDRrzDvaSj.wpENi.2OGYY9RE3CO9axpCeqeQZA6V2',
+    'public',
+    '985761234V',
+    '0771234567',
+    'No.123, Main Street, Kalmunai'
 );
 
 -- Insert departments
@@ -228,28 +288,204 @@ VALUES
 (UUID(), 'Accounts Division', 'Preparing Procurement Plans, Handling Payments, Conducting Surveys'),
 (UUID(), 'Birth, Death & Marriage', 'Registration and Issuance of Birth, Death, and Marriage Certificates'),
 (UUID(), 'NIC', 'Application Processing and Issuance of National Identity Cards');
+
+-- Get department IDs for reference
+SET @admin_div_id = (SELECT id FROM departments WHERE name = 'Administrative Division' LIMIT 1);
+SET @sso_id = (SELECT id FROM departments WHERE name = 'Social Services Office' LIMIT 1);
+SET @planning_id = (SELECT id FROM departments WHERE name = 'Planning Division' LIMIT 1);
+SET @accounts_id = (SELECT id FROM departments WHERE name = 'Accounts Division' LIMIT 1);
+SET @adr_id = (SELECT id FROM departments WHERE name = 'Birth, Death & Marriage' LIMIT 1);
+SET @nic_id = (SELECT id FROM departments WHERE name = 'NIC' LIMIT 1);
+
+-- Insert divisions for Administrative Division
+INSERT INTO divisions (id, name, department_id, description)
+VALUES
+(UUID(), 'General Administration', @admin_div_id, 'Handles general administrative tasks'),
+(UUID(), 'Permits & Licenses', @admin_div_id, 'Processes permits and licenses'),
+(UUID(), 'Revenue Collection', @admin_div_id, 'Handles revenue collection activities');
+
+-- Insert divisions for Social Services Office
+INSERT INTO divisions (id, name, department_id, description)
+VALUES
+(UUID(), 'Senior Citizen Services', @sso_id, 'Services for senior citizens'),
+(UUID(), 'Aid Distribution', @sso_id, 'Handles distribution of aid and equipment');
+
+-- Insert divisions for Planning Division
+INSERT INTO divisions (id, name, department_id, description)
+VALUES
+(UUID(), 'Development Planning', @planning_id, 'Handles development planning'),
+(UUID(), 'Project Evaluation', @planning_id, 'Evaluates project progress');
+
+-- Insert divisions for other departments
+INSERT INTO divisions (id, name, department_id, description)
+VALUES
+(UUID(), 'Financial Operations', @accounts_id, 'Handles financial operations'),
+(UUID(), 'Birth Registration', @adr_id, 'Handles birth registration'),
+(UUID(), 'Death Registration', @adr_id, 'Handles death registration'),
+(UUID(), 'Marriage Registration', @adr_id, 'Handles marriage registration'),
+(UUID(), 'NIC Processing', @nic_id, 'Processes NIC applications');
+
+-- Get division IDs
+SET @permits_div_id = (SELECT id FROM divisions WHERE name = 'Permits & Licenses' LIMIT 1);
+SET @senior_div_id = (SELECT id FROM divisions WHERE name = 'Senior Citizen Services' LIMIT 1);
+SET @birth_div_id = (SELECT id FROM divisions WHERE name = 'Birth Registration' LIMIT 1);
+SET @nic_proc_id = (SELECT id FROM divisions WHERE name = 'NIC Processing' LIMIT 1);
+
+-- Insert services for Administrative Division
+INSERT INTO services (id, name, department_id, division_id, description, required_documents, process_time)
+VALUES
+(UUID(), 'Permit Issuance', @admin_div_id, @permits_div_id, 'Issuance of various permits', 'Application form, ID copy, Proof of address', '3-5 working days'),
+(UUID(), 'Certificate Signing', @admin_div_id, @permits_div_id, 'Counter signing of Grama Niladari Certificates', 'Original certificate, ID copy', '1-2 working days');
+
+-- Insert services for Social Services
+INSERT INTO services (id, name, department_id, division_id, description, required_documents, process_time)
+VALUES
+(UUID(), 'Senior Citizen ID', @sso_id, @senior_div_id, 'Issuing Senior Citizenship Identity Cards', 'Application form, Birth certificate, ID copy, Photos', '7-14 working days'),
+(UUID(), 'Equipment Provision', @sso_id, @senior_div_id, 'Provision of aids and equipment', 'Medical certificate, Application form, ID copy', '14-21 working days');
+
+-- Insert services for Birth Registration
+INSERT INTO services (id, name, department_id, division_id, description, required_documents, process_time)
+VALUES
+(UUID(), 'Birth Certificate', @adr_id, @birth_div_id, 'Issuance of Birth Certificates', 'Hospital declaration, Parents\' IDs', '5-7 working days');
+
+-- Insert NIC service
+INSERT INTO services (id, name, department_id, division_id, description, required_documents, process_time)
+VALUES
+(UUID(), 'NIC Application', @nic_id, @nic_proc_id, 'Processing National Identity Card applications', 'Application form, Birth certificate, Photos, Guardian consent (if minor)', '14-30 working days');
 ```
 
-## 7. Troubleshooting
+## 4. Domain Configuration
 
-### 7.1 Check Server Logs
-- Apache Logs: `/home/dskalmun/logs/`
-- Node.js Logs: Run `pm2 logs dsk-api`
+### 4.1 Set up Domain or Subdomain
 
-### 7.2 Common Issues and Solutions
+1. In cPanel, go to Domains or Subdomains section.
+2. Point your domain or create a subdomain (e.g., app.yourdomain.com) to the `/home/dskalmun/public_html/rapp/` directory.
 
-#### Frontend Routing Issues
-If your React routes don't work when refreshing the page, verify your `.htaccess` file is correctly set up.
+### 4.2 SSL Configuration (Recommended)
 
-#### Database Connection Issues
-Check your database credentials in the `.env` file and confirm the MySQL server is running.
+1. In cPanel, go to SSL/TLS section and select "Manage SSL sites".
+2. Install an SSL certificate for your domain (use Let's Encrypt for a free certificate).
+3. Make sure both your main domain and any subdomains have SSL certificates.
+4. Enable HTTPS redirection for your domain through the .htaccess file.
 
-#### API Connection Issues
-Verify the proxy pass is correctly set up and that the Node.js server is running (check with `pm2 status`).
+## 5. API Configuration
 
-## 8. Maintenance
+### 5.1 Set up Reverse Proxy
 
-### 8.1 Updating the Application
+Create a file named `.htaccess` in your main domain directory with:
+
+```
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Proxy API requests to Node.js server
+  RewriteCond %{REQUEST_URI} ^/api/(.*)$ [NC]
+  RewriteRule ^api/(.*)$ http://localhost:3000/$1 [P,L]
+</IfModule>
+```
+
+### 5.2 Create Backend API Entry Point
+
+Create an `app.js` file in `/home/dskalmun/nodejs/kalmunai-backend/` with the following content:
+
+```javascript
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const dotenv = require('dotenv');
+const path = require('path');
+
+// Load environment variables
+dotenv.config();
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const staffRoutes = require('./routes/staffRoutes');
+const publicRoutes = require('./routes/publicRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+
+// Create Express app
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/services', serviceRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to DSK API' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || 'Something went wrong on the server',
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+
+### 5.3 Create necessary API directories and files
+
+Set up your basic API structure as outlined in the Backend API Structure section above.
+
+## 6. Credentials Summary
+
+### Database Credentials
+- Host: node238.r-usdatacenter.register.lk
+- Database: dskalmun_webapp
+- Username: dskalmun_Admin
+- Password: StrongPassword123! (change this for production!)
+
+### Pre-filled User Credentials
+
+1. Admin User
+   - Email: admin@dsk.gov.lk
+   - Password: admin123
+   - Role: admin
+
+2. Staff User
+   - Email: staff@dsk.gov.lk
+   - Password: staff123
+   - Role: staff
+   - Department: Administrative Division
+   - Division: General Administration
+
+3. Public User
+   - Email: public@dsk.gov.lk
+   - Password: public123
+   - Role: public
+   - NIC: 985761234V
+   - Mobile: 0771234567
+   - Address: No.123, Main Street, Kalmunai
+
+## 7. Maintenance & Backup Procedures
+
+### 7.1 Updating the Application
 
 1. Build an updated version of the React application.
 2. Upload the new build files to `/home/dskalmun/public_html/rapp/`.
@@ -260,7 +496,7 @@ Verify the proxy pass is correctly set up and that the Node.js server is running
    pm2 restart dsk-api
    ```
 
-### 8.2 Backup Procedure
+### 7.2 Regular Backup Procedure
 
 1. Database Backup:
    ```
@@ -275,22 +511,39 @@ Verify the proxy pass is correctly set up and that the Node.js server is running
      tar -czvf dsk_backend_backup_$(date +%Y%m%d).tar.gz /home/dskalmun/nodejs/kalmunai-backend/
      ```
 
-## 9. Security Recommendations
+## 8. Security Best Practices
 
-1. Keep all packages up to date:
+1. Change the default passwords provided in this setup guide.
+2. Keep all packages up to date:
    ```
-   npm audit
+   npm audit fix
    npm update
    ```
-
-2. Use strong passwords for all accounts.
-
 3. Implement rate limiting on your API to prevent abuse.
+4. Set up a firewall to only allow necessary connections.
+5. Use HTTPS for all communications.
+6. Implement proper input validation for all API endpoints.
+7. Set up secure headers using helmet.js.
 
-4. Regularly back up your database and files.
+## 9. Troubleshooting
 
-5. Configure the firewall to only allow necessary connections.
+### 9.1 Common Issues and Solutions
 
-6. Use HTTPS for all communications.
+#### Frontend Routing Issues
+If your React routes don't work when refreshing the page, verify your `.htaccess` file is correctly set up.
+
+#### Database Connection Issues
+- Check your database credentials in the `.env` file
+- Ensure the MySQL server is running
+- Try connecting manually: `mysql -u dskalmun_Admin -p -h node238.r-usdatacenter.register.lk dskalmun_webapp`
+
+#### API Connection Issues
+- Verify the proxy pass is correctly set up
+- Check that the Node.js server is running (use `pm2 status`)
+- Look for errors in PM2 logs: `pm2 logs dsk-api`
+
+### 9.2 Check Server Logs
+- Apache Logs: `/home/dskalmun/logs/`
+- Node.js Logs: Run `pm2 logs dsk-api`
 
 For any technical assistance, please contact your system administrator.

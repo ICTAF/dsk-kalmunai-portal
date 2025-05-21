@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Landing from '@/pages/Landing';
@@ -9,6 +9,19 @@ import PublicDashboard from '@/components/dashboard/PublicDashboard';
 const Index: React.FC = () => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to appropriate dashboard when authentication state changes
+  useEffect(() => {
+    if (isAuthenticated && user && !isLoading) {
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'staff') {
+        navigate('/staff/dashboard');
+      } else if (user.role === 'public') {
+        navigate('/public/dashboard');
+      }
+    }
+  }, [isAuthenticated, user, isLoading, navigate]);
 
   // If the auth is still loading, show a loading state
   if (isLoading) {
@@ -22,18 +35,7 @@ const Index: React.FC = () => {
     );
   }
 
-  // If user is authenticated, redirect to the appropriate dashboard
-  if (isAuthenticated && user) {
-    if (user.role === 'admin') {
-      return <AdminDashboard />;
-    } else if (user.role === 'staff') {
-      return <StaffDashboard />;
-    } else if (user.role === 'public') {
-      return <PublicDashboard />;
-    }
-  }
-
-  // Otherwise, show the landing page
+  // Otherwise, show the landing page (authentication check handled above)
   return <Landing />;
 };
 
